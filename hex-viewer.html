@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@900&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+  }
+
+  #display {
+    width: 100vw;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-weight: 900;
+    color: #fff;
+    user-select: none;
+    letter-spacing: -0.02em;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  #hole-text {
+    font-size: min(28vw, 42vh);
+    line-height: 1;
+  }
+
+  #controls {
+    position: fixed;
+    top: env(safe-area-inset-top, 12px);
+    right: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    z-index: 10;
+  }
+
+  #gps-btn, #fs-btn {
+    padding: 5px 12px;
+    background: rgba(0,0,0,0.6);
+    border: 1px solid #444;
+    border-radius: 100px;
+    color: #666;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 11px;
+    cursor: pointer;
+    -webkit-appearance: none;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  #gps-btn.searching { border-color: #ff9800; color: #ff9800; }
+  #gps-btn.on        { border-color: #4caf50; color: #4caf50; }
+  #gps-btn.error     { border-color: #f44336; color: #f44336; }
+</style>
+</head>
+<body>
+<div id="display">
+  <div id="hole-text">1H</div>
+</div>
+<div id="controls">
+  <button id="fs-btn">⛶ 全画面</button>
+  <button id="gps-btn">📍 自動判定</button>
+</div>
+
+<script>
+  const holes = [
+    { label: '1H',  tee: [35.11827404319132,  136.5848836977423 ],  green: [35.12157168411027,  136.584634640518   ] },
+    { label: '2H',  tee: [35.12159160535401,  136.58530285771215],  green: [35.11821060947743,  136.58607766896907 ] },
+    { label: '3H',  tee: [35.11768599183355,  136.58660738919752],  green: [35.117565583192125, 136.59135625625302 ] },
+    { label: '4H',  tee: [35.11803702665007,  136.59146218741182],  green: [35.11769283367596,  136.5897362020423  ] },
+    { label: '5H',  tee: [35.11847143014149,  136.58993869272356],  green: [35.11914523028993,  136.5870539930841  ] },
+    { label: '6H',  tee: [35.11928976983819,  136.58810942620858],  green: [35.121440051943516, 136.58589527879062 ] },
+    { label: '7H',  tee: [35.12178203525314,  136.5863391682892 ],  green: [35.121856886410576, 136.5880785968826  ] },
+    { label: '8H',  tee: [35.12236998815229,  136.5879484936641 ],  green: [35.12313370296017,  136.58454344543392 ] },
+    { label: '9H',  tee: [35.12237986048209,  136.5840887948945 ],  green: [35.11852653885937,  136.5839801815553  ] },
+    { label: '10H', tee: [35.11763662743282,  136.58225416394296],  green: [35.11469562153404,  136.58160201505123 ] },
+    { label: '11H', tee: [35.11462205185275,  136.58011376116536],  green: [35.11953117054232,  136.58017507984533 ] },
+    { label: '12H', tee: [35.11953219865275,  136.57940029353114],  green: [35.118636045188055, 136.5780614991863  ] },
+    { label: '13H', tee: [35.11859319435323,  136.57958268374855],  green: [35.11595499815173,  136.5781580587088  ] },
+    { label: '14H', tee: [35.11551612427346,  136.57741143559977],  green: [35.113853100876504, 136.580706157216   ] },
+    { label: '15H', tee: [35.114605596420866, 136.5806716606501 ],  green: [35.11769264261017,  136.58133379411223 ] },
+    { label: '16H', tee: [35.117984371530206, 136.58206104491055],  green: [35.11933810515115,  136.58155909966953 ] },
+    { label: '17H', tee: [35.11987554682548,  136.580880872972  ],  green: [35.122510463068416, 136.58273390721695 ] },
+    { label: '18H', tee: [35.12253013877171,  136.58356308195286],  green: [35.118526347842305, 136.58309868765394 ] },
+  ];
+
+  let idx = 0;
+  let watchId = null;
+  let minGreenDist = Infinity;
+  let approachedGreen = false;
+
+  const holeText = document.getElementById('hole-text');
+  const gpsBtn   = document.getElementById('gps-btn');
+  const display  = document.getElementById('display');
+
+  function show() { holeText.textContent = holes[idx].label; }
+
+  function next() { idx = (idx + 1) % holes.length; minGreenDist = Infinity; approachedGreen = false; show(); }
+  function prev() { idx = (idx - 1 + holes.length) % holes.length; minGreenDist = Infinity; approachedGreen = false; show(); }
+
+  // スワイプ
+  let startX = 0, startY = 0;
+  display.addEventListener('touchstart', e => {
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+  }, { passive: true });
+  display.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = e.changedTouches[0].clientY - startY;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
+      dx < 0 ? next() : prev();
+    }
+  }, { passive: true });
+
+  // キーボード
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight') next();
+    if (e.key === 'ArrowLeft')  prev();
+  });
+
+  // 距離計算（メートル）
+  function dist(lat1, lng1, lat2, lng2) {
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2)**2 +
+              Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) * Math.sin(dLng/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+
+  function nearestHole(lat, lng) {
+    let minD = Infinity, best = 0;
+    holes.forEach((h, i) => {
+      const d = Math.min(dist(lat, lng, h.tee[0], h.tee[1]), dist(lat, lng, h.green[0], h.green[1]));
+      if (d < minD) { minD = d; best = i; }
+    });
+    return best;
+  }
+
+  function startGPS() {
+    if (!navigator.geolocation) { gpsBtn.className = 'error'; return; }
+    gpsBtn.className = 'searching';
+
+    watchId = navigator.geolocation.watchPosition(
+      pos => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const greenDist = dist(lat, lng, holes[idx].green[0], holes[idx].green[1]);
+
+        if (greenDist < 50) approachedGreen = true;
+
+        if (approachedGreen && greenDist < minGreenDist) {
+          minGreenDist = greenDist;
+        } else if (approachedGreen && greenDist > minGreenDist + 20) {
+          idx = (idx + 1) % holes.length;
+          minGreenDist = Infinity;
+          approachedGreen = false;
+        }
+
+        show();
+        gpsBtn.className = 'on';
+      },
+      () => { gpsBtn.className = 'error'; },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+    );
+  }
+
+  function stopGPS() {
+    if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+    watchId = null;
+    gpsBtn.className = '';
+  }
+
+  gpsBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    watchId === null ? startGPS() : stopGPS();
+  });
+
+  // 全画面
+  const fsBtn = document.getElementById('fs-btn');
+  function updateFsBtn() {
+    const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    fsBtn.textContent = isFs ? '✕ 全画面解除' : '⛶ 全画面';
+  }
+  fsBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    if (!isFs) {
+      const el = document.documentElement;
+      if (el.requestFullscreen) el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen();
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+    }
+  });
+  document.addEventListener('fullscreenchange', updateFsBtn);
+  document.addEventListener('webkitfullscreenchange', updateFsBtn);
+
+  show();
+</script>
+</body>
+</html>
