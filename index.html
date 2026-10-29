@@ -15,6 +15,8 @@
     background: #000;
     overflow: hidden;
   }
+  /* ボタン類は body を基準に配置する（fixed は iPhone で効かなくなることがあるため） */
+  body { position: relative; height: 100dvh; }
 
   #display {
     width: 100vw;
@@ -37,7 +39,7 @@
   }
 
   #controls {
-    position: fixed;
+    position: absolute;
     top: max(28px, calc(env(safe-area-inset-top, 0px) + 20px));
     right: max(12px, calc(env(safe-area-inset-right, 0px) + 8px));
     display: flex;
@@ -69,7 +71,7 @@
 
   /* 取扱説明 */
   #help-btn {
-    position: fixed;
+    position: absolute;
     top: max(28px, calc(env(safe-area-inset-top, 0px) + 20px));
     left: max(12px, calc(env(safe-area-inset-left, 0px) + 8px));
     padding: 5px 12px;
@@ -86,7 +88,7 @@
   }
   #help {
     display: none;
-    position: fixed;
+    position: absolute;
     inset: 0;
     background: rgba(0,0,0,0.95);
     z-index: 30;
@@ -139,7 +141,7 @@
 
   /* 前後ボタン */
   .nav-btn {
-    position: fixed;
+    position: absolute;
     top: 50%;
     transform: translateY(-50%);
     width: 44px; height: 72px;
@@ -174,7 +176,7 @@
   /* ホール選択 */
   #picker {
     display: none;
-    position: fixed;
+    position: absolute;
     inset: 0;
     background: rgba(0,0,0,0.92);
     z-index: 20;
@@ -512,7 +514,7 @@
 
   // バージョン確認・更新
   // ※ファイルを更新するたびに、この値を書き換える
-  const APP_VERSION = '2026-10-29 22:45';
+  const APP_VERSION = '2026-10-29 22:55';
   const verText   = document.getElementById('ver-text');
   const updateBtn = document.getElementById('update-btn');
   verText.textContent = '現在のバージョン：' + APP_VERSION;
@@ -544,6 +546,17 @@
     checkVersion(true);
   });
   checkVersion(false);
+
+  // アプリに戻ってきたとき、表示を組み直してボタンが効く状態に戻す
+  function wake() {
+    void document.body.offsetHeight;
+    window.scrollTo(0, 0);
+    refreshBtn();
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) wake(); });
+  window.addEventListener('pageshow', wake);
+  window.addEventListener('resize', wake);
+  window.addEventListener('orientationchange', wake);
 
   // 取扱説明
   const help = document.getElementById('help');
