@@ -38,7 +38,7 @@
 
   #controls {
     position: fixed;
-    top: max(48px, calc(env(safe-area-inset-top, 0px) + 40px));
+    top: max(28px, calc(env(safe-area-inset-top, 0px) + 20px));
     right: max(12px, calc(env(safe-area-inset-right, 0px) + 8px));
     display: flex;
     flex-direction: column;
@@ -70,7 +70,7 @@
   /* 取扱説明 */
   #help-btn {
     position: fixed;
-    top: max(48px, calc(env(safe-area-inset-top, 0px) + 40px));
+    top: max(28px, calc(env(safe-area-inset-top, 0px) + 20px));
     left: max(12px, calc(env(safe-area-inset-left, 0px) + 8px));
     padding: 5px 12px;
     background: rgba(0,0,0,0.6);
@@ -512,7 +512,7 @@
 
   // バージョン確認・更新
   // ※ファイルを更新するたびに、この値を書き換える
-  const APP_VERSION = '2026-10-29 22:40';
+  const APP_VERSION = '2026-10-29 22:45';
   const verText   = document.getElementById('ver-text');
   const updateBtn = document.getElementById('update-btn');
   verText.textContent = '現在のバージョン：' + APP_VERSION;
