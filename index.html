@@ -146,7 +146,8 @@
   /* 縦向き：ホール番号の下に左右ボタンを並べる */
   @media (orientation: portrait) {
     .nav-btn {
-      top: calc(50% + min(21vw, 27.5vh) + 20px);
+      top: auto;
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 56px);
       transform: none;
       width: 84px; height: 48px;
       border: 1px solid #333;
