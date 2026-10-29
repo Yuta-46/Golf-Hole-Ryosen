@@ -110,6 +110,19 @@
   #help-inner h3 { font-size: 14px; font-weight: 700; color: #fff; margin: 18px 0 4px; }
   #help-inner ul { padding-left: 1.2em; }
   #help-inner li { margin-bottom: 2px; }
+  #update-btn {
+    margin: 6px 0 0;
+    padding: 6px 18px;
+    background: none;
+    border: 1px solid #666;
+    border-radius: 100px;
+    color: #ccc;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+    -webkit-appearance: none;
+  }
+  #ver-text { color: #999; font-size: 13px; }
   #help-close {
     display: block;
     margin: 24px auto 0;
@@ -246,6 +259,11 @@
   <div id="help-inner">
     <h2>取扱説明</h2>
     <p>涼仙ゴルフ倶楽部のホール番号（1H〜18H）を大きく表示します。現在地から、いまいるホールを自動で表示することもできます。</p>
+
+    <h3>バージョン</h3>
+    <p id="ver-text"></p>
+    <button id="update-btn">最新版に更新</button>
+    <p style="font-size:12px;color:#888;margin-top:4px">起動時に自動で最新かどうかを確認します（電波がないときは確認できません）。新しい版があれば、自動で読み込み直します。</p>
 
     <h3>ホールを手動で切り替える</h3>
     <ul>
@@ -491,6 +509,41 @@
     picker.classList.add('show');
   });
   picker.addEventListener('click', () => picker.classList.remove('show'));
+
+  // バージョン確認・更新
+  // ※ファイルを更新するたびに、この値を書き換える
+  const APP_VERSION = '2026-10-29 22:20';
+  const verText   = document.getElementById('ver-text');
+  const updateBtn = document.getElementById('update-btn');
+  verText.textContent = '現在のバージョン：' + APP_VERSION;
+
+  function reloadFresh() {
+    // 別のURLとして読み込ませ、古い保存データを使わせない
+    location.replace(location.pathname + '?v=' + Date.now());
+  }
+
+  async function checkVersion(manual) {
+    try {
+      const res = await fetch(location.pathname + '?c=' + Date.now(), { cache: 'no-store' });
+      const m = (await res.text()).match(/const APP_VERSION = '([^']+)'/);
+      if (!m) throw new Error('no version');
+      if (m[1] !== APP_VERSION) {
+        // 読み込み直しても版が合わない場合の無限ループを避ける
+        if (!/[?&]v=/.test(location.search) || manual) { reloadFresh(); return; }
+        verText.textContent = '現在のバージョン：' + APP_VERSION + '（新しい版 ' + m[1] + ' を取得できませんでした。少し待ってからもう一度お試しください）';
+        return;
+      }
+      verText.textContent = '現在のバージョン：' + APP_VERSION + '（最新です）';
+    } catch (err) {
+      verText.textContent = '現在のバージョン：' + APP_VERSION + '（最新かどうか確認できませんでした）';
+    }
+  }
+  updateBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    verText.textContent = '確認中…';
+    checkVersion(true);
+  });
+  checkVersion(false);
 
   // 取扱説明
   const help = document.getElementById('help');
