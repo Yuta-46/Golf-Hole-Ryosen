@@ -32,7 +32,7 @@
   }
 
   #hole-text {
-    font-size: min(36vw, 50vh);
+    font-size: min(42vw, 55vh);
     line-height: 1;
   }
 
@@ -85,6 +85,19 @@
   #prev-btn { left: 0; border-radius: 0 12px 12px 0; border-left: none; }
   #next-btn { right: 0; border-radius: 12px 0 0 12px; border-right: none; }
   .nav-btn:active { background: rgba(255,255,255,0.18); color: #ccc; }
+
+  /* 縦向き：ホール番号の下に左右ボタンを並べる */
+  @media (orientation: portrait) {
+    .nav-btn {
+      top: calc(50% + min(21vw, 27.5vh) + 20px);
+      transform: none;
+      width: 84px; height: 48px;
+      border: 1px solid #333;
+      border-radius: 12px;
+    }
+    #prev-btn { left: calc(50% - 92px); right: auto; }
+    #next-btn { left: calc(50% + 8px);  right: auto; }
+  }
 
   /* ホール選択 */
   #picker {
