@@ -505,8 +505,7 @@
     pickerGrid.appendChild(b);
     return b;
   });
-  holeText.addEventListener('click', e => {
-    e.stopPropagation();
+  holeText.addEventListener('click', () => {
     pickerBtns.forEach((b, i) => b.classList.toggle('cur', i === idx));
     picker.classList.add('show');
   });
@@ -514,7 +513,7 @@
 
   // バージョン確認・更新
   // ※ファイルを更新するたびに、この値を書き換える
-  const APP_VERSION = '2026-10-29 22:55';
+  const APP_VERSION = '2026-10-29 23:05';
   const verText   = document.getElementById('ver-text');
   const updateBtn = document.getElementById('update-btn');
   verText.textContent = '現在のバージョン：' + APP_VERSION;
