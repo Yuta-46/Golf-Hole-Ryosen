@@ -32,7 +32,7 @@
   }
 
   #hole-text {
-    font-size: min(28vw, 42vh);
+    font-size: min(36vw, 50vh);
     line-height: 1;
   }
 
@@ -62,16 +62,126 @@
   }
   #gps-btn.searching { border-color: #ff9800; color: #ff9800; }
   #gps-btn.on        { border-color: #4caf50; color: #4caf50; }
+  #gps-btn.manual    { border-color: #2196f3; color: #2196f3; }
   #gps-btn.error     { border-color: #f44336; color: #f44336; }
+
+  #hole-text { cursor: pointer; }
+
+  /* 前後ボタン */
+  .nav-btn {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 44px; height: 72px;
+    padding: 0;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid #333;
+    color: #777;
+    font-size: 18px;
+    cursor: pointer;
+    -webkit-appearance: none;
+    z-index: 5;
+  }
+  #prev-btn { left: 0; border-radius: 0 12px 12px 0; border-left: none; }
+  #next-btn { right: 0; border-radius: 12px 0 0 12px; border-right: none; }
+  .nav-btn:active { background: rgba(255,255,255,0.18); color: #ccc; }
+
+  /* ホール選択 */
+  #picker {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.92);
+    z-index: 20;
+    align-items: center;
+    justify-content: center;
+  }
+  #picker.show { display: flex; }
+  #picker-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    width: min(94vw, 640px);
+  }
+  #picker-grid button {
+    padding: 0;
+    height: min(14vw, 64px);
+    background: rgba(255,255,255,0.05);
+    border: 1px solid #444;
+    border-radius: 10px;
+    color: #ddd;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-weight: 900;
+    font-size: max(16px, min(5vw, 24px));
+    cursor: pointer;
+    -webkit-appearance: none;
+  }
+  #picker-grid button.cur { border-color: #fff; background: rgba(255,255,255,0.22); color: #fff; }
+  #picker-grid button:active { background: rgba(255,255,255,0.3); }
+
+  #gps-row { display: flex; align-items: center; gap: 6px; }
+
+  #info-btn {
+    width: 22px; height: 22px;
+    padding: 0;
+    background: rgba(0,0,0,0.6);
+    border: 1px solid #444;
+    border-radius: 50%;
+    color: #666;
+    font-family: Georgia, serif;
+    font-style: italic;
+    font-weight: bold;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    -webkit-appearance: none;
+  }
+  #info-btn.open { border-color: #aaa; color: #ccc; }
+
+  #legend {
+    display: none;
+    background: rgba(20,20,20,0.95);
+    border: 1px solid #444;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-weight: 400;
+    font-size: 11px;
+    line-height: 1.5;
+    color: #bbb;
+    max-width: 260px;
+  }
+  #legend.show { display: block; }
+  #legend .row { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 6px; }
+  #legend .row:last-child { margin-bottom: 0; }
+  #legend .dot {
+    flex: none;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    margin-top: 4px;
+  }
 </style>
 </head>
 <body>
 <div id="display">
   <div id="hole-text">1H</div>
 </div>
+<button id="prev-btn" class="nav-btn" aria-label="前のホール">◀</button>
+<button id="next-btn" class="nav-btn" aria-label="次のホール">▶</button>
+<div id="picker"><div id="picker-grid"></div></div>
 <div id="controls">
   <button id="fs-btn">⛶ 全画面</button>
-  <button id="gps-btn">📍 自動判定</button>
+  <div id="gps-row">
+    <button id="gps-btn">📍 自動判定</button>
+    <button id="info-btn" aria-label="凡例">i</button>
+  </div>
+  <div id="legend">
+    <div class="row"><span class="dot" style="background:#666"></span><span>グレー：自動判定オフ</span></div>
+    <div class="row"><span class="dot" style="background:#ff9800"></span><span>オレンジ：測位中、またはコース外（ホールは変わりません）</span></div>
+    <div class="row"><span class="dot" style="background:#4caf50"></span><span>緑：自動判定中（表示中のホールが現在地の近く）</span></div>
+    <div class="row"><span class="dot" style="background:#2196f3"></span><span>青：手動で変更中（表示中のホールが現在地から100m以上離れています。次のホールのティー付近でのみ自動で進みます）</span></div>
+    <div class="row"><span class="dot" style="background:#f44336"></span><span>赤：位置情報を取得できません</span></div>
+  </div>
 </div>
 
 <script>
@@ -107,8 +217,8 @@
 
   function show() { holeText.textContent = holes[idx].label; }
 
-  function next() { idx = (idx + 1) % holes.length; minGreenDist = Infinity; approachedGreen = false; show(); }
-  function prev() { idx = (idx - 1 + holes.length) % holes.length; minGreenDist = Infinity; approachedGreen = false; show(); }
+  function next() { idx = (idx + 1) % holes.length; candCount = 0; show(); refreshBtn(); }
+  function prev() { idx = (idx - 1 + holes.length) % holes.length; candCount = 0; show(); refreshBtn(); }
 
   // スワイプ
   let startX = 0, startY = 0;
@@ -140,48 +250,138 @@
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   }
 
+  function holeDist(lat, lng, h) {
+    return Math.min(dist(lat, lng, h.tee[0], h.tee[1]), dist(lat, lng, h.green[0], h.green[1]));
+  }
+
   function nearestHole(lat, lng) {
     let minD = Infinity, best = 0;
     holes.forEach((h, i) => {
-      const d = Math.min(dist(lat, lng, h.tee[0], h.tee[1]), dist(lat, lng, h.green[0], h.green[1]));
+      const d = holeDist(lat, lng, h);
       if (d < minD) { minD = d; best = i; }
     });
-    return best;
+    return { index: best, d: minD };
+  }
+
+  const COURSE_RADIUS = 300; // コースから300m以内なら「コース内」とみなす
+  let locked = false;        // 最初のホール判定が済んだか
+  const NEXT_TEE_RADIUS = 40; // 次ホールのティーからこの距離(m)以内で次ホールへ
+  const SWITCH_COUNT    = 2;  // 切替に必要な連続判定回数
+  let candCount = 0;
+  const MANUAL_FAR = 100;    // 表示ホールが現在地からこの距離(m)以上離れていたら「手動」(青)
+  let lastPos = null;        // 最新の現在地 [lat, lng]
+  let gpsError = false;
+
+  // ボタンの色を状態から決める
+  function refreshBtn() {
+    let cls = '';
+    if (watchId !== null) {
+      if (gpsError) cls = 'error';
+      else if (!lastPos) cls = 'searching';
+      else if (nearestHole(lastPos[0], lastPos[1]).d > COURSE_RADIUS) cls = 'searching';
+      else if (holeDist(lastPos[0], lastPos[1], holes[idx]) > MANUAL_FAR) cls = 'manual';
+      else cls = 'on';
+    }
+    gpsBtn.className = cls;
   }
 
   function startGPS() {
     if (!navigator.geolocation) { gpsBtn.className = 'error'; return; }
-    gpsBtn.className = 'searching';
+    gpsError = false;
+    lastPos = null;
+    watchId = -1; // 開始直後（測位中）
+    refreshBtn();
 
     watchId = navigator.geolocation.watchPosition(
       pos => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
-        const greenDist = dist(lat, lng, holes[idx].green[0], holes[idx].green[1]);
+        lastPos = [lat, lng];
+        gpsError = false;
+        const near = nearestHole(lat, lng);
 
-        if (greenDist < 50) approachedGreen = true;
+        // コース外：ホールは変更せず、オレンジ表示のまま待機
+        if (near.d > COURSE_RADIUS) {
+          refreshBtn();
+          return;
+        }
 
-        if (approachedGreen && greenDist < minGreenDist) {
-          minGreenDist = greenDist;
-        } else if (approachedGreen && greenDist > minGreenDist + 20) {
-          idx = (idx + 1) % holes.length;
-          minGreenDist = Infinity;
-          approachedGreen = false;
+        // 自動モードの動き：
+        //  ・最初の1回だけ、一番近いホールに合わせる
+        //  ・以降は「次のホールのティー」に近づいたときだけ次のホールへ進む
+        //  ・大きく離れたホールへの移動は手動（スワイプ）で切り替える
+        if (!locked) {
+          idx = near.index;
+          locked = true;
+          candCount = 0;
+        } else {
+          const next = (idx + 1) % holes.length;
+          const dNextTee = dist(lat, lng, holes[next].tee[0], holes[next].tee[1]);
+          if (dNextTee < NEXT_TEE_RADIUS) {
+            candCount++;
+            if (candCount >= SWITCH_COUNT) {
+              idx = next;
+              candCount = 0;
+            }
+          } else {
+            candCount = 0;
+          }
         }
 
         show();
-        gpsBtn.className = 'on';
+        refreshBtn();
       },
-      () => { gpsBtn.className = 'error'; },
+      () => { gpsError = true; refreshBtn(); },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
     );
   }
 
   function stopGPS() {
-    if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+    if (watchId !== null && watchId !== -1) navigator.geolocation.clearWatch(watchId);
     watchId = null;
-    gpsBtn.className = '';
+    locked = false;
+    lastPos = null;
+    refreshBtn();
   }
+
+  // 前後ボタン
+  document.getElementById('prev-btn').addEventListener('click', e => { e.stopPropagation(); prev(); });
+  document.getElementById('next-btn').addEventListener('click', e => { e.stopPropagation(); next(); });
+
+  // ホール選択（ホール番号をタップ）
+  const picker     = document.getElementById('picker');
+  const pickerGrid = document.getElementById('picker-grid');
+  const pickerBtns = holes.map((h, i) => {
+    const b = document.createElement('button');
+    b.textContent = h.label;
+    b.addEventListener('click', e => {
+      e.stopPropagation();
+      idx = i; candCount = 0;
+      show(); refreshBtn();
+      picker.classList.remove('show');
+    });
+    pickerGrid.appendChild(b);
+    return b;
+  });
+  holeText.addEventListener('click', e => {
+    e.stopPropagation();
+    pickerBtns.forEach((b, i) => b.classList.toggle('cur', i === idx));
+    picker.classList.add('show');
+  });
+  picker.addEventListener('click', () => picker.classList.remove('show'));
+
+  // 凡例（iボタン）
+  const infoBtn = document.getElementById('info-btn');
+  const legend  = document.getElementById('legend');
+  infoBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    const open = legend.classList.toggle('show');
+    infoBtn.classList.toggle('open', open);
+  });
+  document.addEventListener('click', () => {
+    legend.classList.remove('show');
+    infoBtn.classList.remove('open');
+  });
 
   gpsBtn.addEventListener('click', e => {
     e.stopPropagation();
